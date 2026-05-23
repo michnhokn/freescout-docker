@@ -1,0 +1,29 @@
+services:
+    freescout:
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+        env_file:
+            - .env
+        ports:
+            - "8020:8080"
+        volumes:
+            - freescout-storage:/app/storage
+            - freescout-modules:/app/Modules
+        depends_on:
+            - database
+
+    database:
+        image: postgres:16
+        restart: always
+        volumes:
+            - freescout-database-data:/var/lib/postgresql/data
+        environment:
+            POSTGRES_PASSWORD: freescout
+            POSTGRES_USER: freescout
+            POSTGRES_DB: freescout
+
+volumes:
+    freescout-database-data: { }
+    freescout-storage: { }
+    freescout-modules: { }

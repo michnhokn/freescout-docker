@@ -1,0 +1,30 @@
+{
+  frankenphp {
+	num_threads 75
+  }
+
+  order php_server before file_server
+}
+
+{$SERVER_NAME::8080} {
+  header {
+	-Server
+	-X-Powered-By
+	defer
+  }
+
+  route /healthz {
+	respond "OK" 200
+  }
+
+  route {
+	root * /app/public
+	php_server
+	file_server
+  }
+
+  log {
+	output stdout
+	format json
+  }
+}
