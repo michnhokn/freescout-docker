@@ -25,10 +25,10 @@ php artisan storage:link || {
     exit 1
 }
 
-echo "[ENTRYPOINT] Run migrations..."
-php artisan migrate --force || {
-    echo "❌ ERROR: 'migration' command failed."
-    exit 1
-}
+#echo "[ENTRYPOINT] Run migrations..."
+#php artisan migrate --force || {
+#    echo "❌ ERROR: 'migration' command failed."
+#    exit 1
+#}
 
 exec docker-php-entrypoint "$@"
