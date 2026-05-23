@@ -4,4 +4,5 @@
 2. Set environment variables
 3. Run container
 4. Access the application and create a user `php artisan freescout:create-user`
-5. Enjoy!
+5. Set up message worker via scheduler `php artisan schedule:run`
+6. Enjoy!
