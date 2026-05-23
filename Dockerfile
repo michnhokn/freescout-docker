@@ -46,7 +46,7 @@ COPY Caddyfile /etc/frankenphp/Caddyfile
 
 # Set up permissions for Symfony cache and log directories
 RUN mkdir -p storage bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache \
+    && chown -R www-data:www-data . \
     && chmod -R 775 storage bootstrap/cache
 
 # Use the default production PHP configuration
