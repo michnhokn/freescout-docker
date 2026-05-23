@@ -14,7 +14,7 @@ mkdir -p /app/Modules
 chown -R www-data:www-data /app/Modules
 
 echo "[ENTRYPOINT] Clear Freescout cache..."
-php artisan freescout:clear-cache || {
+php artisan freescout:clear-cache --doNotGenerateVars || {
     echo "❌ ERROR: 'freescout:clear-cache' command failed."
     exit 1
 }
