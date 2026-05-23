@@ -27,5 +27,3 @@ jobs:
                     file: Dockerfile
                     load: true
                     tags: freescout-docker:latest
-                    cache-from: type=registry,ref=ghcr.io/michnhokn/freescout-docker:buildcache
-                    cache-to: type=registry,ref=ghcr.io/michnhokn/freescout-docker:buildcache,mode=max
