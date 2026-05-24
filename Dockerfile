@@ -23,6 +23,8 @@ RUN install-php-extensions \
     pcntl \
     intl
 
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
 # Tell FrankenPHP to listen on port 8080 via HTTP.
 ENV SERVER_NAME=":8080"
 ENV APP_ENV=prod
@@ -40,6 +42,10 @@ RUN git clone --branch dist https://github.com/freescout-help-desk/freescout.git
     && rm -rf /tmp/freescout /app/.git
 
 RUN if [ -f /app/.env.example ] && [ ! -f /app/.env ]; then cp /app/.env.example /app/.env; fi
+
+# Install dependencies with Composer
+RUN rm -rf vendor/ && composer clear-cache
+RUN composer install --optimize-autoloader --no-interaction --ignore-platform-reqs
 
 # Copy application and vendor files
 COPY Caddyfile /etc/frankenphp/Caddyfile
