@@ -6,3 +6,9 @@
 4. Access the application and create a user `php artisan freescout:create-user`
 5. Set up message worker via scheduler `php artisan schedule:run` every minute `* * * * *`
 6. Enjoy!
+
+## Known Issues
+
+- After a restart of a container, the js assets are broken. To fix you have to navigate to `/system/tools` and clear the
+  cache. Afterward visit the `/system/status` page to trigger the asset rebuild. This is a known issue and will be
+  fixed in a future release.
