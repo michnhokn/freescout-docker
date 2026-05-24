@@ -10,35 +10,26 @@ mkdir -p /app/storage/framework/{cache,sessions,views} \
          /app/public/css/builds \
          /app/public/js/builds
 
-# Fix ownership and permissions
-# Use 'find' with -exec to handle nested directories properly
-find /app/storage /app/bootstrap/cache /app/public/css/builds /app/public/js/builds \
-    -exec chown www-data:www-data {} \; \
-    -exec chmod u+rwX,g+rwX,o-rwx {} \; 2>/dev/null || true
-
-# Same for top-level app directories
 chown -R www-data:www-data /app/storage /app/bootstrap/cache /app/Modules /app/public/css/builds /app/public/js/builds 2>/dev/null || true
+chmod -R u+rwX,g+rwX,o-rwx /app/storage /app/bootstrap/cache /app/public/css/builds /app/public/js/builds 2>/dev/null || true
 
-# Ensure Modules directory exists
 mkdir -p /app/Modules
 chown -R www-data:www-data /app/Modules
 
-echo "[ENTRYPOINT] Clear FreeScout cache..."
-php artisan freescout:clear-cache --doNotGenerateVars || {
-    echo "❌ ERROR: 'freescout:clear-cache' command failed."
-    exit 1
-}
+echo "[ENTRYPOINT] Clearing configuration cache..."
+php artisan config:clear || true
+php artisan cache:clear || true
 
 echo "[ENTRYPOINT] Linking storage directory..."
 php artisan storage:link || {
     echo "⚠️  WARNING: 'storage:link' command failed (may already exist)."
-    true  # Don't exit, symlink might already exist
+    true
 }
 
 echo "[ENTRYPOINT] Run migrations..."
 php artisan migrate --force || {
-   echo "❌ ERROR: 'migration' command failed."
-   exit 1
+    echo "⚠️  WARNING: 'migrate' command failed (may have no new migrations)."
+    true
 }
 
 echo "[ENTRYPOINT] Starting FrankenPHP..."

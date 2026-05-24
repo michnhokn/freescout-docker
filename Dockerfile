@@ -70,5 +70,8 @@ USER www-data
 
 EXPOSE 8080
 
+HEALTHCHECK --interval=10s --timeout=5s --start_period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/healthz || exit 1
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--config","/etc/frankenphp/Caddyfile","--adapter","caddyfile"]
