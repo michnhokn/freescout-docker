@@ -16,9 +16,11 @@ chmod -R u+rwX,g+rwX,o-rwx /app/storage /app/bootstrap/cache /app/public/css/bui
 mkdir -p /app/Modules
 chown -R www-data:www-data /app/Modules
 
-echo "[ENTRYPOINT] Clearing configuration cache..."
-php artisan config:clear || true
-php artisan cache:clear || true
+echo "[ENTRYPOINT] Clear FreeScout cache..."
+php artisan freescout:clear-cache --doNotGenerateVars || {
+    echo "❌ ERROR: 'freescout:clear-cache' command failed."
+    exit 1
+}
 
 echo "[ENTRYPOINT] Linking storage directory..."
 php artisan storage:link || {
