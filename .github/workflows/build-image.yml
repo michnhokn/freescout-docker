@@ -36,6 +36,7 @@ jobs:
                     images: ghcr.io/michnhokn/freescout-docker
                     tags: |
                         type=raw,value=latest
+                        type=raw,value=1.8.220
                         type=sha,format=short
 
             -   name: Build and Push Docker image

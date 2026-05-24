@@ -27,7 +27,7 @@ RUN install-php-extensions \
 ENV SERVER_NAME=":8080"
 ENV APP_ENV=prod
 
-ARG FREESCOUT_VERSION=1.8.221
+ARG FREESCOUT_VERSION=1.8.220
 
 # FrankenPHP expects the app to be in /app by default
 WORKDIR /app
