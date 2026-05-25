@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-echo "=== Freescout Container Startup ==="
+echo "[ENTRY] === Freescout Container Startup ==="
 
 # Ensure storage directories exist (volume may be empty on first deploy)
-echo "Ensuring storage directories exist..."
+echo "[ENTRY] Ensuring storage directories exist ..."
 mkdir -p /app/storage/app/public
 mkdir -p /app/storage/framework/cache/data
 mkdir -p /app/storage/framework/sessions
@@ -18,9 +18,9 @@ chmod -R 775 /app/storage /app/Modules
 # Auto-generate APP_KEY if not set or invalid (must start with "base64:")
 if [ -z "$APP_KEY" ] || [[ ! "$APP_KEY" =~ ^base64: ]]; then
     if [ -n "$APP_KEY" ]; then
-        echo "APP_KEY is set but invalid (must start with 'base64:')"
+        echo "[ENTRY] APP_KEY is set but invalid (must start with 'base64:')"
     else
-        echo "No APP_KEY found"
+        echo "[ENTRY] No APP_KEY found"
     fi
     echo "Generating new APP_KEY..."
     APP_KEY=$(php artisan key:generate --show)
@@ -33,66 +33,24 @@ if [ -z "$APP_KEY" ] || [[ ! "$APP_KEY" =~ ^base64: ]]; then
     echo ""
 fi
 
-# Wait for MySQL to be ready using PHP PDO (more reliable than artisan commands)
-echo "Waiting for MySQL at ${DB_HOST:-mysql}:${DB_PORT:-3306}..."
-max_attempts=30
-attempt=0
-
-wait_for_mysql() {
-    php -r "
-        \$host = getenv('DB_HOST') ?: 'mysql';
-        \$port = getenv('DB_PORT') ?: '3306';
-        \$user = getenv('DB_USERNAME') ?: 'root';
-        \$pass = getenv('DB_PASSWORD') ?: '';
-        \$db = getenv('DB_DATABASE') ?: 'freescout';
-        try {
-            new PDO(\"mysql:host=\$host;port=\$port;dbname=\$db\", \$user, \$pass, [
-                PDO::ATTR_TIMEOUT => 5,
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]);
-            exit(0);
-        } catch (Exception \$e) {
-            exit(1);
-        }
-    " 2>/dev/null
-}
-
-until wait_for_mysql || [ $attempt -ge $max_attempts ]; do
-    attempt=$((attempt + 1))
-    echo "MySQL not ready (attempt $attempt/$max_attempts)..."
-    sleep 2
-done
-
-if [ $attempt -ge $max_attempts ]; then
-    echo "ERROR: Could not connect to MySQL after $max_attempts attempts"
-    echo "DB_HOST=${DB_HOST:-mysql}, DB_PORT=${DB_PORT:-3306}, DB_DATABASE=${DB_DATABASE:-freescout}"
-    exit 1
-fi
-
-echo "MySQL is ready!"
-
 # Run migrations
-echo "Running migrations..."
+echo "[ENTRY] Running migrations ..."
 php artisan migrate --force
 
 # Cache configuration
-echo "Caching configuration..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache
+echo "[ENTRY] Caching clear freescout cache ..."
 php artisan freescout:clear-cache --doNotGenerateVars
 
 # Create storage link (harmless if already exists)
-echo "Creating storage link..."
+echo "[ENTRY] Creating storage link..."
 php artisan storage:link 2>/dev/null || true
 
 # Re-apply storage ownership after artisan commands (may have created root-owned files)
-echo "Re-applying storage ownership..."
+echo "[ENTRY]  Re-applying storage ownership ..."
 chown -R www-data:www-data /app/storage /app/bootstrap/cache /app/Modules
 chmod -R 775 /app/storage /app/bootstrap/cache /app/Modules
 
-echo "=== Startup complete, launching services ==="
+echo "[ENTRY] === Startup complete, launching services ==="
 
 # Start FrankenPHP
 exec docker-php-entrypoint "$@"
