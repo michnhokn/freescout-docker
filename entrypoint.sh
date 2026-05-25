@@ -1,38 +1,98 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-echo "[ENTRYPOINT] Ensure storage directories exist and have correct permissions..."
-mkdir -p /app/storage/framework/{cache,sessions,views} \
-         /app/storage/logs \
-         /app/storage/app/public \
-         /app/storage/app/attachment \
-         /app/bootstrap/cache \
-         /app/public/css/builds \
-         /app/public/js/builds
+echo "=== Freescout Container Startup ==="
 
-chown -R www-data:www-data /app/storage /app/bootstrap/cache /app/Modules /app/public/css/builds /app/public/js/builds 2>/dev/null || true
-chmod -R u+rwX,g+rwX,o-rwx /app/storage /app/bootstrap/cache /app/public/css/builds /app/public/js/builds 2>/dev/null || true
-
+# Ensure storage directories exist (volume may be empty on first deploy)
+echo "Ensuring storage directories exist..."
+mkdir -p /app/storage/app/public
+mkdir -p /app/storage/framework/cache/data
+mkdir -p /app/storage/framework/sessions
+mkdir -p /app/storage/framework/views
+mkdir -p /app/storage/logs
 mkdir -p /app/Modules
-chown -R www-data:www-data /app/Modules
 
-echo "[ENTRYPOINT] Clear FreeScout cache..."
-php artisan freescout:clear-cache --doNotGenerateVars || {
-    echo "❌ ERROR: 'freescout:clear-cache' command failed."
+chown -R www-data:www-data /app/storage /app/Modules
+chmod -R 775 /app/storage /app/Modules
+
+# Auto-generate APP_KEY if not set or invalid (must start with "base64:")
+if [ -z "$APP_KEY" ] || [[ ! "$APP_KEY" =~ ^base64: ]]; then
+    if [ -n "$APP_KEY" ]; then
+        echo "APP_KEY is set but invalid (must start with 'base64:')"
+    else
+        echo "No APP_KEY found"
+    fi
+    echo "Generating new APP_KEY..."
+    APP_KEY=$(php artisan key:generate --show)
+    export APP_KEY
+    echo ""
+    echo "=================================================="
+    echo "IMPORTANT: Save this key in your environment!"
+    echo "APP_KEY=$APP_KEY"
+    echo "=================================================="
+    echo ""
+fi
+
+# Wait for MySQL to be ready using PHP PDO (more reliable than artisan commands)
+echo "Waiting for MySQL at ${DB_HOST:-mysql}:${DB_PORT:-3306}..."
+max_attempts=30
+attempt=0
+
+wait_for_mysql() {
+    php -r "
+        \$host = getenv('DB_HOST') ?: 'mysql';
+        \$port = getenv('DB_PORT') ?: '3306';
+        \$user = getenv('DB_USERNAME') ?: 'root';
+        \$pass = getenv('DB_PASSWORD') ?: '';
+        \$db = getenv('DB_DATABASE') ?: 'freescout';
+        try {
+            new PDO(\"mysql:host=\$host;port=\$port;dbname=\$db\", \$user, \$pass, [
+                PDO::ATTR_TIMEOUT => 5,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+            exit(0);
+        } catch (Exception \$e) {
+            exit(1);
+        }
+    " 2>/dev/null
+}
+
+until wait_for_mysql || [ $attempt -ge $max_attempts ]; do
+    attempt=$((attempt + 1))
+    echo "MySQL not ready (attempt $attempt/$max_attempts)..."
+    sleep 2
+done
+
+if [ $attempt -ge $max_attempts ]; then
+    echo "ERROR: Could not connect to MySQL after $max_attempts attempts"
+    echo "DB_HOST=${DB_HOST:-mysql}, DB_PORT=${DB_PORT:-3306}, DB_DATABASE=${DB_DATABASE:-freescout}"
     exit 1
-}
+fi
 
-echo "[ENTRYPOINT] Linking storage directory..."
-php artisan storage:link || {
-    echo "⚠️  WARNING: 'storage:link' command failed (may already exist)."
-    true
-}
+echo "MySQL is ready!"
 
-echo "[ENTRYPOINT] Run migrations..."
-php artisan migrate --force || {
-    echo "⚠️  WARNING: 'migrate' command failed (may have no new migrations)."
-    true
-}
+# Run migrations
+echo "Running migrations..."
+php artisan migrate --force
 
-echo "[ENTRYPOINT] Starting FrankenPHP..."
+# Cache configuration
+echo "Caching configuration..."
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan event:cache
+php artisan freescout:clear-cache --doNotGenerateVars
+
+# Create storage link (harmless if already exists)
+echo "Creating storage link..."
+php artisan storage:link 2>/dev/null || true
+
+# Re-apply storage ownership after artisan commands (may have created root-owned files)
+echo "Re-applying storage ownership..."
+chown -R www-data:www-data /app/storage /app/bootstrap/cache /app/Modules
+chmod -R 775 /app/storage /app/bootstrap/cache /app/Modules
+
+echo "=== Startup complete, launching services ==="
+
+# Start FrankenPHP
 exec docker-php-entrypoint "$@"
